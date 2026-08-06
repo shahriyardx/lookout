@@ -25,7 +25,10 @@ The UI is a deliberately **monochrome, e-ink dark** theme: flat matte black, hig
 - **Single binary.** The entire UI (HTML/CSS/JS) is embedded with `go:embed`. Copy one file to a server and run it.
 - **Tiny footprint.** No web framework, no chart library, no database. One background goroutine samples the system; an SSE hub fans that single sample out to every connected browser — **N viewers cost the same as one**. Resident memory ~15 MB.
 - **Live streaming.** Metrics push to the browser over Server-Sent Events. The refresh interval (1s / 2s / 5s) is adjustable from the UI and applied server-side.
-- **Eight views:** Overview · CPU (per-core) · Memory · Disk (usage + I/O) · Network (per-interface) · Processes · Docker · System (+ temperature sensors).
+- **Views:** Overview · CPU (per-core) · Memory · Disk (usage + I/O) · Network (per-interface) · Processes · Docker · System (+ temperature sensors) · **Network Manager**.
+- **NetworkManager control** (auto-detected). When NetworkManager is present on the host, a **Net Mgr** tab appears with live status, devices + IPs, Wi-Fi networks (connect with a password, disconnect), a Wi-Fi radio toggle, and saved-connection management (connect / forget). It talks to NM over the system **D-Bus** (via `godbus` — no `nmcli` binary needed) and the whole feature auto-hides where NM isn't running. In Docker it needs the system D-Bus socket mounted (see the compose file); write actions additionally require **polkit** to authorize the caller.
+
+![Network Manager](docs/netmgr.png)
 - **Sortable processes.** Click any column (CPU / mem / RSS / PID / name / user). The server streams a candidate pool that is the **union of the top processes by CPU and by RSS**, so sorting by memory surfaces the real memory hogs — not just whatever ranked high on CPU.
 - **Zero-SDK Docker.** Container stats are read straight off the Docker socket over HTTP; no Docker client library is linked in.
 - **Cross-platform.** Linux and macOS via [`gopsutil`](https://github.com/shirou/gopsutil).

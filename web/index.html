@@ -6,6 +6,7 @@
   <meta name="color-scheme" content="dark" />
   <title>lookout // system monitor</title>
   <link rel="stylesheet" href="/app.css" />
+  <link rel="stylesheet" href="/vendor/xterm.css" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' fill='%2304070a'/%3E%3Cpath d='M4 4 H20 V12 L12 21 L4 12 Z' fill='rgba(255,255,255,0.12)' stroke='%23c9c9c9' stroke-width='1.5' stroke-linejoin='miter'/%3E%3Cpath d='M6.4 11 H9.8 L11.2 7.4 L13 14.6 L14.3 11 H17.6' fill='none' stroke='%23c9c9c9' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
 </head>
 <body class="text-[13px]">
@@ -218,10 +219,24 @@
           <div id="nmMsg" class="text-[11px] text-[#7d7d7d] min-h-[16px]"></div>
         </section>
 
+        <!-- TERMINAL (opt-in; only present when -terminal is enabled) -->
+        <section data-tab="terminal" class="tab hidden">
+          <div class="panel !p-2">
+            <div class="panel-head !mb-2">
+              <h2 class="panel-title">terminal</h2>
+              <span id="termStatus" class="badge">—</span>
+            </div>
+            <div id="termContainer" style="height:72vh;background:#000;"></div>
+          </div>
+          <div class="text-[11px] text-[#7d7d7d] mt-2">⚠ full interactive shell on the host — runs any command. be careful.</div>
+        </section>
+
       </main>
     </div>
   </div>
 
+  <script src="/vendor/xterm.js"></script>
+  <script src="/vendor/xterm-addon-fit.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

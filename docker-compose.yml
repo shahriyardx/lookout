@@ -9,7 +9,19 @@ services:
     # Host networking: bind :7070 on the host and read the host's network
     # interfaces directly (put a reverse proxy in front for auth).
     network_mode: host
-    command: ["-addr", "127.0.0.1:7070"]
+
+    # Opt-in web terminal as a HOST shell: nsenter into the host's namespaces
+    # (PID 1). This is a full root shell exposed on the web — keep strong auth
+    # in front (reverse-proxy). Drop the -terminal / -terminal-cmd args (and the
+    # pid/privileged lines below) to disable it.
+    command:
+      - "-addr"
+      - "127.0.0.1:7070"
+      - "-terminal"
+      - "-terminal-cmd"
+      - "nsenter -t 1 -m -u -i -n -p -- /bin/bash -l"
+    pid: host
+    privileged: true
 
     # Point gopsutil at the host's /proc and /sys so CPU, memory, load,
     # network and the full host process list are the HOST's, not the

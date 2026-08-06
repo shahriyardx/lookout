@@ -3,6 +3,8 @@ module lookout
 go 1.26.5
 
 require (
+	github.com/coder/websocket v1.8.15
+	github.com/creack/pty v1.1.24
 	github.com/godbus/dbus/v5 v5.2.2
 	github.com/shirou/gopsutil/v4 v4.26.7
 )

@@ -16,10 +16,12 @@ const NAV = [
   ["docker", "Docker", "M3 13h18v3a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4zM6 13V9h3v4M11 13V9h3v4M11 9V5h3v4"],
   ["system", "System", "M9 3h6l1 4 4 1v6l-4 1-1 4H9l-1-4-4-1V8l4-1zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"],
   ["netmgr", "Net Mgr", "M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 19.5h.01"],
+  ["terminal", "Terminal", "M4 4h16v16H4zM7 8.5l3 2.5-3 2.5M12.5 14h4"],
 ];
 
 // runtime capabilities reported by /api/health
-let caps = { netmgr: false };
+let caps = { netmgr: false, terminal: false };
+const GATED = { netmgr: () => caps.netmgr, terminal: () => caps.terminal };
 
 // e-ink grayscale palette (chart series distinguished by brightness)
 const ACC = "#e6e6e6", CYAN = "#8f8f8f", LIME = "#bdbdbd", AMBER = "#d6d6d6", RED = "#f2f2f2", VIOLET = "#707070";
@@ -143,7 +145,7 @@ let memGauge, memGauge2, swapGauge;
 let current = "overview";
 function buildNav() {
   const nav = $("nav");
-  nav.innerHTML = NAV.filter(([id]) => id !== "netmgr" || caps.netmgr).map(([id, label, path]) =>
+  nav.innerHTML = NAV.filter(([id]) => !GATED[id] || GATED[id]()).map(([id, label, path]) =>
     `<a class="nav-item ${id === current ? "active" : ""}" data-go="${id}">
       <svg viewBox="0 0 24 24" class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="${path}"/></svg>
       <span>${label}</span>
@@ -157,6 +159,7 @@ function go(id) {
   $("pageTitle").textContent = ((NAV.find((n) => n[0] === id) || [])[1] || "").toLowerCase();
   if (last) render(last);
   if (id === "netmgr") refreshNM();
+  if (id === "terminal") showTerminal();
 }
 
 // ------------------------------------------------------------------ render
@@ -515,6 +518,46 @@ function nmTile(label, value) {
     <div class="text-lg font-bold text-[#f2f2f2]">${esc(value)}</div></div>`;
 }
 
+// ------------------------------------------------------------- terminal
+let term = null, fitAddon = null, termWS = null;
+function setTermStatus(t) { const el = $("termStatus"); if (el) el.textContent = t; }
+function initTerminal() {
+  if (term) return;
+  term = new Terminal({
+    fontFamily: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
+    fontSize: 13, cursorBlink: true, scrollback: 5000,
+    theme: { background: "#000000", foreground: "#d6d6d6", cursor: "#eaeaea", selectionBackground: "#333333" },
+  });
+  fitAddon = new FitAddon.FitAddon();
+  term.loadAddon(fitAddon);
+  term.open($("termContainer"));
+  try { fitAddon.fit(); } catch (_) {}
+  term.onData((d) => { if (termWS && termWS.readyState === 1) termWS.send(new TextEncoder().encode(d)); });
+  term.onResize(({ cols, rows }) => { if (termWS && termWS.readyState === 1) termWS.send(JSON.stringify({ cols, rows })); });
+  window.addEventListener("resize", () => { if (current === "terminal" && fitAddon) { try { fitAddon.fit(); } catch (_) {} } });
+  connectTerm();
+}
+function connectTerm() {
+  setTermStatus("connecting");
+  const proto = location.protocol === "https:" ? "wss:" : "ws:";
+  termWS = new WebSocket(proto + "//" + location.host + "/api/term/ws");
+  termWS.binaryType = "arraybuffer";
+  termWS.onopen = () => {
+    setTermStatus("connected");
+    try { fitAddon.fit(); } catch (_) {}
+    termWS.send(JSON.stringify({ cols: term.cols, rows: term.rows }));
+  };
+  termWS.onmessage = (e) => term.write(new Uint8Array(e.data));
+  termWS.onclose = () => setTermStatus("disconnected");
+  termWS.onerror = () => setTermStatus("error");
+}
+function showTerminal() {
+  initTerminal();
+  setTimeout(() => { if (fitAddon) { try { fitAddon.fit(); } catch (_) {} } }, 40);
+  if (termWS && termWS.readyState >= 2) connectTerm(); // closed/closing -> reconnect
+  if (term) term.focus();
+}
+
 // ------------------------------------------------------------------ clock
 setInterval(() => {
   $("clock").textContent = new Date().toLocaleTimeString([], { hour12: false });
@@ -555,7 +598,8 @@ function boot() {
     $("ver").textContent = h.version || "1.0";
     if (h.interval) $("intervalSel").value = String(h.interval);
     caps.netmgr = !!h.netmgr;
-    buildNav(); // reveal the Net Mgr tab if NetworkManager was detected
+    caps.terminal = !!h.terminal;
+    buildNav(); // reveal gated tabs (Net Mgr / Terminal) based on capabilities
   }).catch(() => {});
   // refresh NM state while its tab is open
   setInterval(() => { if (current === "netmgr") refreshNM(); }, 5000);

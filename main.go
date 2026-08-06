@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
@@ -35,6 +36,8 @@ func main() {
 	topN := flag.Int("top", 12, "number of top processes to report")
 	dockerSock := flag.String("docker-socket", detectDockerSocket(), "docker socket path (empty to disable)")
 	nmEnabled := flag.Bool("netmgr", true, "show the NetworkManager control tab when NM is present")
+	terminal := flag.Bool("terminal", false, "enable the web terminal tab (a full remote shell; OPT-IN, high-risk)")
+	terminalCmd := flag.String("terminal-cmd", "", "shell argv for the terminal; default: $SHELL or /bin/sh")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
 
@@ -59,6 +62,10 @@ func main() {
 
 	srv := web.New(col, nm, *interval, assets)
 
+	if *terminal {
+		srv.EnableTerminal(shellArgv(*terminalCmd))
+	}
+
 	httpSrv := &http.Server{
 		Addr:              *addr,
 		Handler:           srv.Handler(),
@@ -66,8 +73,8 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("lookout %s listening on http://localhost%s (interval %s, docker=%v, netmgr=%v)",
-			version, *addr, *interval, col.DockerEnabled(), nm.Available())
+		log.Printf("lookout %s listening on http://localhost%s (interval %s, docker=%v, netmgr=%v, terminal=%v)",
+			version, *addr, *interval, col.DockerEnabled(), nm.Available(), *terminal)
 		if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("http: %v", err)
 		}
@@ -88,6 +95,23 @@ func envOr(key, def string) string {
 		return v
 	}
 	return def
+}
+
+// shellArgv resolves the terminal's shell argv: an explicit -terminal-cmd
+// (space-split), else $SHELL, else the first of bash/sh that exists.
+func shellArgv(cmd string) []string {
+	if f := strings.Fields(cmd); len(f) > 0 {
+		return f
+	}
+	if sh := os.Getenv("SHELL"); sh != "" {
+		return []string{sh}
+	}
+	for _, c := range []string{"/bin/bash", "/bin/sh"} {
+		if _, err := os.Stat(c); err == nil {
+			return []string{c}
+		}
+	}
+	return []string{"/bin/sh"}
 }
 
 // detectDockerSocket returns the first Docker socket that exists, or "" if none.

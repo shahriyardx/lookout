@@ -29,6 +29,10 @@ The UI is a deliberately **monochrome, e-ink dark** theme: flat matte black, hig
 - **NetworkManager control** (auto-detected). When NetworkManager is present on the host, a **Net Mgr** tab appears with live status, devices + IPs, Wi-Fi networks (connect with a password, disconnect), a Wi-Fi radio toggle, and saved-connection management (connect / forget). It talks to NM over the system **D-Bus** (via `godbus` — no `nmcli` binary needed) and the whole feature auto-hides where NM isn't running. In Docker it needs the system D-Bus socket mounted (see the compose file); write actions additionally require **polkit** to authorize the caller.
 
 ![Network Manager](docs/netmgr.png)
+
+- **Web terminal** (opt-in, `-terminal`). A full interactive shell in the browser — a real PTY streamed over a WebSocket to an embedded xterm.js (no CDN). In the Docker deployment it's wired via `nsenter` into the **host** namespaces, so you get a shell on the *host*, not the container — handy for a box with no public IP. **This is a remote root shell**: it's off by default, and only as safe as the auth in front of the server. Enable it deliberately and keep strong auth on the reverse proxy.
+
+![Web terminal](docs/terminal.png)
 - **Sortable processes.** Click any column (CPU / mem / RSS / PID / name / user). The server streams a candidate pool that is the **union of the top processes by CPU and by RSS**, so sorting by memory surfaces the real memory hogs — not just whatever ranked high on CPU.
 - **Zero-SDK Docker.** Container stats are read straight off the Docker socket over HTTP; no Docker client library is linked in.
 - **Cross-platform.** Linux and macOS via [`gopsutil`](https://github.com/shirou/gopsutil).

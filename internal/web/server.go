@@ -26,8 +26,18 @@ type Server struct {
 	nm     *netmgr.Manager
 	assets fs.FS
 
+	termEnabled bool
+	termCmd     []string
+
 	intervalNs atomic.Int64 // poll interval, dynamically adjustable
 	hub        *hub
+}
+
+// EnableTerminal turns on the opt-in web terminal, spawning cmd (argv) per
+// connection. Must be called before Handler().
+func (s *Server) EnableTerminal(cmd []string) {
+	s.termEnabled = true
+	s.termCmd = cmd
 }
 
 // New builds a Server. assets is the embedded web/ filesystem (rooted so that
@@ -71,6 +81,7 @@ func (s *Server) Handler() http.Handler {
 			"version":  Version,
 			"docker":   s.col.DockerEnabled(),
 			"netmgr":   s.nm.Available(),
+			"terminal": s.terminalEnabled(),
 			"interval": time.Duration(s.intervalNs.Load()).Milliseconds(),
 		})
 	})
@@ -84,6 +95,11 @@ func (s *Server) Handler() http.Handler {
 		mux.HandleFunc("/api/nm/connect", s.handleNMConnect)
 		mux.HandleFunc("/api/nm/disconnect", s.handleNMDisconnect)
 		mux.HandleFunc("/api/nm/forget", s.handleNMForget)
+	}
+
+	// Opt-in web terminal (a full remote shell) — only when -terminal was set.
+	if s.terminalEnabled() {
+		mux.HandleFunc("/api/term/ws", s.handleTermWS)
 	}
 	// Static SPA assets (index.html, app.js, app.css) from the embedded FS.
 	mux.Handle("/", http.FileServer(http.FS(s.assets)))

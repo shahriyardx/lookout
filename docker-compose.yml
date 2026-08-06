@@ -18,6 +18,8 @@ services:
       - HOST_PROC=/host/proc
       - HOST_SYS=/host/sys
       - HOST_ETC=/host/etc
+      # reach the host's NetworkManager over D-Bus
+      - DBUS_SYSTEM_BUS_ADDRESS=unix:path=/run/dbus/system_bus_socket
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
@@ -25,3 +27,7 @@ services:
       - /etc/os-release:/host/etc/os-release:ro
       # Docker tab (read-only). Remove if you don't want it.
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      # NetworkManager control tab (auto-hides if NM is absent). Not :ro so
+      # D-Bus method calls (connect / toggle Wi-Fi) can go through; write
+      # actions still require polkit to authorize the caller.
+      - /run/dbus/system_bus_socket:/run/dbus/system_bus_socket

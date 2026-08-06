@@ -74,6 +74,14 @@
     border-color: rgba(255,255,255,0.10);
     background: rgba(255,255,255,0.015);
   }
+
+  .nm-btn {
+    @apply text-[10px] px-2 py-0.5 border uppercase tracking-wider cursor-pointer shrink-0;
+    color: #cfcfcf; border-color: rgba(255,255,255,0.18); background: rgba(255,255,255,0.03);
+  }
+  .nm-btn:hover { color: #f2f2f2; background: rgba(255,255,255,0.09); }
+  .nm-danger { color: #9a9a9a; }
+  .nm-danger:hover { color: #ffffff; }
 }
 
 /* ---- Utilities -------------------------------------------------------- */

@@ -15,7 +15,11 @@ const NAV = [
   ["procs", "Processes", "M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"],
   ["docker", "Docker", "M3 13h18v3a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4zM6 13V9h3v4M11 13V9h3v4M11 9V5h3v4"],
   ["system", "System", "M9 3h6l1 4 4 1v6l-4 1-1 4H9l-1-4-4-1V8l4-1zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"],
+  ["netmgr", "Net Mgr", "M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 19.5h.01"],
 ];
+
+// runtime capabilities reported by /api/health
+let caps = { netmgr: false };
 
 // e-ink grayscale palette (chart series distinguished by brightness)
 const ACC = "#e6e6e6", CYAN = "#8f8f8f", LIME = "#bdbdbd", AMBER = "#d6d6d6", RED = "#f2f2f2", VIOLET = "#707070";
@@ -139,7 +143,7 @@ let memGauge, memGauge2, swapGauge;
 let current = "overview";
 function buildNav() {
   const nav = $("nav");
-  nav.innerHTML = NAV.map(([id, label, path]) =>
+  nav.innerHTML = NAV.filter(([id]) => id !== "netmgr" || caps.netmgr).map(([id, label, path]) =>
     `<a class="nav-item ${id === current ? "active" : ""}" data-go="${id}">
       <svg viewBox="0 0 24 24" class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="${path}"/></svg>
       <span>${label}</span>
@@ -152,6 +156,7 @@ function go(id) {
   document.querySelectorAll("[data-go]").forEach((a) => a.classList.toggle("active", a.dataset.go === id));
   $("pageTitle").textContent = ((NAV.find((n) => n[0] === id) || [])[1] || "").toLowerCase();
   if (last) render(last);
+  if (id === "netmgr") refreshNM();
 }
 
 // ------------------------------------------------------------------ render
@@ -411,6 +416,95 @@ function rootDisk(disks) {
   return disks.find((d) => d.mount === "/") || disks.find((d) => d.mount === "C:\\") || disks[0];
 }
 
+// ------------------------------------------------------------- netmgr
+let nmData = null;
+function refreshNM() {
+  fetch("/api/nm/state").then((r) => r.json()).then((d) => { nmData = d; renderNM(d); }).catch(() => {});
+}
+function nmMsg(t) { const el = $("nmMsg"); if (el) el.textContent = t; }
+function nmAction(url) {
+  nmMsg("working…");
+  return fetch(url, { method: "POST" }).then((r) => r.json()).then((res) => {
+    nmMsg(res && res.ok === false ? "error: " + (res.error || "failed") : "ok");
+    setTimeout(refreshNM, 700);
+  }).catch(() => nmMsg("request failed"));
+}
+
+function renderNM(d) {
+  if (!d) return;
+  $("nmStatus").innerHTML = [
+    nmTile("State", d.state),
+    nmTile("Connectivity", d.connectivity),
+    nmTile("Networking", d.networkingEnabled ? "on" : "off"),
+    nmTile("Wi-Fi", !d.wirelessHardware ? "no hw" : d.wirelessEnabled ? "on" : "off"),
+  ].join("");
+
+  const wt = $("nmWifiToggle");
+  wt.textContent = "wifi: " + (d.wirelessEnabled ? "on" : "off");
+  wt.onclick = () => nmAction("/api/nm/wifi?on=" + (d.wirelessEnabled ? "0" : "1"));
+
+  if (!d.wirelessHardware) {
+    $("nmWifi").innerHTML = `<div class="text-[12px] text-[#6a6a6a] py-3">no wi-fi hardware.</div>`;
+  } else if (!d.wirelessEnabled) {
+    $("nmWifi").innerHTML = `<div class="text-[12px] text-[#6a6a6a] py-3">wi-fi is off.</div>`;
+  } else if (!d.wifiAPs || !d.wifiAPs.length) {
+    $("nmWifi").innerHTML = `<div class="text-[12px] text-[#6a6a6a] py-3">scanning… no networks yet.</div>`;
+  } else {
+    $("nmWifi").innerHTML = `<div class="space-y-0.5">` + d.wifiAPs.map((ap) =>
+      `<div class="flex items-center gap-3 text-[12px] py-1.5 border-b border-[rgba(255,255,255,0.05)]">
+        <span class="w-10 tabnum text-right ${ap.active ? "text-[#eaeaea]" : "text-[#9a9a9a]"}">${ap.signal}%</span>
+        <span class="flex-1 min-w-0 truncate ${ap.active ? "text-[#f2f2f2]" : "text-[#cfcfcf]"}">${esc(ap.ssid)}${ap.active ? " ✓" : ""}</span>
+        <span class="text-[10px] text-[#6a6a6a] uppercase w-16">${esc(ap.security)}</span>
+        ${ap.active
+          ? `<button class="nm-btn" data-dc="${esc(ap.iface)}">disconnect</button>`
+          : `<button class="nm-btn" data-wifi="${esc(ap.ssid)}" data-sec="${esc(ap.security)}">connect</button>`}
+      </div>`).join("") + `</div>`;
+  }
+
+  $("nmDevices").innerHTML = (d.devices || []).map((dev) =>
+    `<div class="flex items-center gap-3 text-[12px] py-1.5 border-b border-[rgba(255,255,255,0.05)]">
+      <span class="w-20 text-[#cfcfcf] truncate">${esc(dev.iface)}</span>
+      <span class="w-14 text-[10px] uppercase text-[#6a6a6a]">${esc(dev.type)}</span>
+      <span class="w-24 text-[#9a9a9a]">${esc(dev.state)}</span>
+      <span class="flex-1 min-w-0 truncate text-[#b0b0b0] tabnum">${esc(dev.ip4 || "")}</span>
+      ${dev.state === "connected" ? `<button class="nm-btn" data-dc="${esc(dev.iface)}">disconnect</button>` : ""}
+    </div>`).join("") || `<div class="text-[12px] text-[#6a6a6a] py-3">no devices.</div>`;
+
+  $("nmSaved").innerHTML = (d.saved || []).map((c) =>
+    `<div class="flex items-center gap-3 text-[12px] py-1.5 border-b border-[rgba(255,255,255,0.05)]">
+      <span class="flex-1 min-w-0 truncate ${c.active ? "text-[#f2f2f2]" : "text-[#cfcfcf]"}">${esc(c.id)}${c.active ? " ✓" : ""}</span>
+      <span class="w-16 text-[10px] uppercase text-[#6a6a6a]">${esc(c.type)}</span>
+      ${c.active ? "" : `<button class="nm-btn" data-conn="${esc(c.uuid)}">connect</button>`}
+      <button class="nm-btn nm-danger" data-forget="${esc(c.uuid)}">forget</button>
+    </div>`).join("") || `<div class="text-[12px] text-[#6a6a6a] py-3">no saved connections.</div>`;
+
+  bindNMButtons();
+}
+
+function bindNMButtons() {
+  document.querySelectorAll("[data-wifi]").forEach((b) => (b.onclick = () => {
+    const ssid = b.dataset.wifi, sec = b.dataset.sec || "";
+    let psk = "";
+    if (sec.toLowerCase() !== "open") {
+      psk = prompt('Password for "' + ssid + '":');
+      if (psk === null) return;
+    }
+    nmAction("/api/nm/connect?ssid=" + encodeURIComponent(ssid) + "&psk=" + encodeURIComponent(psk));
+  }));
+  document.querySelectorAll("[data-conn]").forEach((b) => (b.onclick = () =>
+    nmAction("/api/nm/connect?uuid=" + encodeURIComponent(b.dataset.conn))));
+  document.querySelectorAll("[data-dc]").forEach((b) => (b.onclick = () =>
+    nmAction("/api/nm/disconnect?iface=" + encodeURIComponent(b.dataset.dc))));
+  document.querySelectorAll("[data-forget]").forEach((b) => (b.onclick = () => {
+    if (confirm("Forget this saved connection?")) nmAction("/api/nm/forget?uuid=" + encodeURIComponent(b.dataset.forget));
+  }));
+}
+
+function nmTile(label, value) {
+  return `<div class="stat"><div class="text-[10px] text-[#7d7d7d] uppercase tracking-[0.16em]">${label}</div>
+    <div class="text-lg font-bold text-[#f2f2f2]">${esc(value)}</div></div>`;
+}
+
 // ------------------------------------------------------------------ clock
 setInterval(() => {
   $("clock").textContent = new Date().toLocaleTimeString([], { hour12: false });
@@ -450,7 +544,11 @@ function boot() {
   fetch("/api/health").then((r) => r.json()).then((h) => {
     $("ver").textContent = h.version || "1.0";
     if (h.interval) $("intervalSel").value = String(h.interval);
+    caps.netmgr = !!h.netmgr;
+    buildNav(); // reveal the Net Mgr tab if NetworkManager was detected
   }).catch(() => {});
+  // refresh NM state while its tab is open
+  setInterval(() => { if (current === "netmgr") refreshNM(); }, 5000);
   connect();
 }
 document.addEventListener("DOMContentLoaded", boot);

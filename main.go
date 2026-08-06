@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"lookout/internal/metrics"
+	"lookout/internal/netmgr"
 	"lookout/internal/web"
 )
 
@@ -33,6 +34,7 @@ func main() {
 	interval := flag.Duration("interval", 2*time.Second, "metric refresh interval")
 	topN := flag.Int("top", 12, "number of top processes to report")
 	dockerSock := flag.String("docker-socket", detectDockerSocket(), "docker socket path (empty to disable)")
+	nmEnabled := flag.Bool("netmgr", true, "show the NetworkManager control tab when NM is present")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
 
@@ -48,7 +50,14 @@ func main() {
 
 	web.Version = version
 	col := metrics.New(*topN, *dockerSock)
-	srv := web.New(col, *interval, assets)
+
+	// Auto-detect NetworkManager; nil when absent (or disabled) hides the tab.
+	var nm *netmgr.Manager
+	if *nmEnabled {
+		nm = netmgr.New()
+	}
+
+	srv := web.New(col, nm, *interval, assets)
 
 	httpSrv := &http.Server{
 		Addr:              *addr,
@@ -57,8 +66,8 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("lookout %s listening on http://localhost%s (interval %s, docker=%v)",
-			version, *addr, *interval, col.DockerEnabled())
+		log.Printf("lookout %s listening on http://localhost%s (interval %s, docker=%v, netmgr=%v)",
+			version, *addr, *interval, col.DockerEnabled(), nm.Available())
 		if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("http: %v", err)
 		}

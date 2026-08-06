@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"lookout/internal/metrics"
+	"lookout/internal/netmgr"
 )
 
 const minInterval = 500 * time.Millisecond
@@ -22,6 +23,7 @@ var Version = "dev"
 // a one-shot JSON endpoint, and an SSE stream fed by a single shared poller.
 type Server struct {
 	col    *metrics.Collector
+	nm     *netmgr.Manager
 	assets fs.FS
 
 	intervalNs atomic.Int64 // poll interval, dynamically adjustable
@@ -29,10 +31,12 @@ type Server struct {
 }
 
 // New builds a Server. assets is the embedded web/ filesystem (rooted so that
-// "index.html" resolves at the top level).
-func New(col *metrics.Collector, interval time.Duration, assets fs.FS) *Server {
+// "index.html" resolves at the top level). nm may be nil (NetworkManager
+// absent), which hides the network-manager feature.
+func New(col *metrics.Collector, nm *netmgr.Manager, interval time.Duration, assets fs.FS) *Server {
 	s := &Server{
 		col:    col,
+		nm:     nm,
 		assets: assets,
 		hub:    newHub(),
 	}
@@ -66,10 +70,21 @@ func (s *Server) Handler() http.Handler {
 			"ok":       true,
 			"version":  Version,
 			"docker":   s.col.DockerEnabled(),
+			"netmgr":   s.nm.Available(),
 			"interval": time.Duration(s.intervalNs.Load()).Milliseconds(),
 		})
 	})
 	mux.HandleFunc("/api/interval", s.handleInterval)
+
+	// NetworkManager endpoints are only registered when NM is present, so the
+	// feature (and its UI tab) is fully absent otherwise.
+	if s.nm.Available() {
+		mux.HandleFunc("/api/nm/state", s.handleNMState)
+		mux.HandleFunc("/api/nm/wifi", s.handleNMWifi)
+		mux.HandleFunc("/api/nm/connect", s.handleNMConnect)
+		mux.HandleFunc("/api/nm/disconnect", s.handleNMDisconnect)
+		mux.HandleFunc("/api/nm/forget", s.handleNMForget)
+	}
 	// Static SPA assets (index.html, app.js, app.css) from the embedded FS.
 	mux.Handle("/", http.FileServer(http.FS(s.assets)))
 	return logRequests(mux)
@@ -93,6 +108,53 @@ func (s *Server) handleInterval(w http.ResponseWriter, r *http.Request) {
 	}
 	s.intervalNs.Store(int64(d))
 	writeJSON(w, map[string]any{"interval": d.Milliseconds()})
+}
+
+// ---- NetworkManager handlers (registered only when NM is available) ----
+
+func (s *Server) handleNMState(w http.ResponseWriter, r *http.Request) {
+	d, err := s.nm.Snapshot()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, d)
+}
+
+func (s *Server) handleNMWifi(w http.ResponseWriter, r *http.Request) {
+	on := r.FormValue("on") == "1" || r.FormValue("on") == "true"
+	s.nmDo(w, s.nm.SetWireless(on))
+}
+
+func (s *Server) handleNMConnect(w http.ResponseWriter, r *http.Request) {
+	if uuid := r.FormValue("uuid"); uuid != "" {
+		s.nmDo(w, s.nm.ActivateUUID(uuid))
+		return
+	}
+	if ssid := r.FormValue("ssid"); ssid != "" {
+		s.nmDo(w, s.nm.ConnectWifi(ssid, r.FormValue("psk")))
+		return
+	}
+	http.Error(w, "uuid or ssid required", http.StatusBadRequest)
+}
+
+func (s *Server) handleNMDisconnect(w http.ResponseWriter, r *http.Request) {
+	s.nmDo(w, s.nm.Disconnect(r.FormValue("iface")))
+}
+
+func (s *Server) handleNMForget(w http.ResponseWriter, r *http.Request) {
+	s.nmDo(w, s.nm.DeleteUUID(r.FormValue("uuid")))
+}
+
+// nmDo reports the outcome of a NetworkManager action as JSON. NM errors are
+// often polkit authorization failures — surfaced verbatim so the UI can show
+// what went wrong.
+func (s *Server) nmDo(w http.ResponseWriter, err error) {
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true})
 }
 
 func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {

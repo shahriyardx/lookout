@@ -195,6 +195,29 @@
           </div>
         </section>
 
+        <!-- NETWORK MANAGER (only present when NM is detected) -->
+        <section data-tab="netmgr" class="tab hidden space-y-5">
+          <div id="nmStatus" class="grid grid-cols-2 lg:grid-cols-4 gap-3"></div>
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div class="panel">
+              <div class="panel-head">
+                <h2 class="panel-title">wifi.networks</h2>
+                <button id="nmWifiToggle" class="badge cursor-pointer">wifi: —</button>
+              </div>
+              <div id="nmWifi" class="mt-1"></div>
+            </div>
+            <div class="panel">
+              <div class="panel-head"><h2 class="panel-title">devices</h2></div>
+              <div id="nmDevices" class="mt-1"></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2 class="panel-title">saved.connections</h2></div>
+            <div id="nmSaved" class="mt-1"></div>
+          </div>
+          <div id="nmMsg" class="text-[11px] text-[#7d7d7d] min-h-[16px]"></div>
+        </section>
+
       </main>
     </div>
   </div>

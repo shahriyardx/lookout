@@ -17,8 +17,11 @@ services:
     environment:
       - HOST_PROC=/host/proc
       - HOST_SYS=/host/sys
+      - HOST_ETC=/host/etc
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
+      # host OS identity so the System tab shows the real distro, not Alpine
+      - /etc/os-release:/host/etc/os-release:ro
       # Docker tab (read-only). Remove if you don't want it.
       - /var/run/docker.sock:/var/run/docker.sock:ro

@@ -441,7 +441,15 @@ function renderNM(d) {
 
   const wt = $("nmWifiToggle");
   wt.textContent = "wifi: " + (d.wirelessEnabled ? "on" : "off");
-  wt.onclick = () => nmAction("/api/nm/wifi?on=" + (d.wirelessEnabled ? "0" : "1"));
+  wt.onclick = () => {
+    if (d.wirelessEnabled) {
+      // turning OFF is destructive — if this machine is on Wi-Fi it self-disconnects
+      if (!confirm("Turn Wi-Fi OFF?\n\nIf this machine is connected over Wi-Fi, this will cut its network — including this page and any remote access. You'd then need console access to re-enable it.")) return;
+      nmAction("/api/nm/wifi?on=0");
+    } else {
+      nmAction("/api/nm/wifi?on=1"); // turning on is safe, no prompt
+    }
+  };
 
   if (!d.wirelessHardware) {
     $("nmWifi").innerHTML = `<div class="text-[12px] text-[#6a6a6a] py-3">no wi-fi hardware.</div>`;
@@ -493,8 +501,10 @@ function bindNMButtons() {
   }));
   document.querySelectorAll("[data-conn]").forEach((b) => (b.onclick = () =>
     nmAction("/api/nm/connect?uuid=" + encodeURIComponent(b.dataset.conn))));
-  document.querySelectorAll("[data-dc]").forEach((b) => (b.onclick = () =>
-    nmAction("/api/nm/disconnect?iface=" + encodeURIComponent(b.dataset.dc))));
+  document.querySelectorAll("[data-dc]").forEach((b) => (b.onclick = () => {
+    if (!confirm('Disconnect "' + b.dataset.dc + '"?\n\nIf this interface carries the machine\'s network, this will cut it (and your remote access).')) return;
+    nmAction("/api/nm/disconnect?iface=" + encodeURIComponent(b.dataset.dc));
+  }));
   document.querySelectorAll("[data-forget]").forEach((b) => (b.onclick = () => {
     if (confirm("Forget this saved connection?")) nmAction("/api/nm/forget?uuid=" + encodeURIComponent(b.dataset.forget));
   }));

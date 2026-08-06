@@ -36,7 +36,7 @@ func main() {
 	topN := flag.Int("top", 12, "number of top processes to report")
 	dockerSock := flag.String("docker-socket", detectDockerSocket(), "docker socket path (empty to disable)")
 	nmEnabled := flag.Bool("netmgr", true, "show the NetworkManager control tab when NM is present")
-	terminal := flag.Bool("terminal", false, "enable the web terminal tab (a full remote shell; OPT-IN, high-risk)")
+	terminal := flag.Bool("terminal", true, "web terminal tab (a full remote shell); enabled by default — pass -terminal=false to disable")
 	terminalCmd := flag.String("terminal-cmd", "", "shell argv for the terminal; default: $SHELL or /bin/sh")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()

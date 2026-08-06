@@ -30,7 +30,7 @@ The UI is a deliberately **monochrome, e-ink dark** theme: flat matte black, hig
 
 ![Network Manager](docs/netmgr.png)
 
-- **Web terminal** (opt-in, `-terminal`). A full interactive shell in the browser — a real PTY streamed over a WebSocket to an embedded xterm.js (no CDN). In the Docker deployment it's wired via `nsenter` into the **host** namespaces, so you get a shell on the *host*, not the container — handy for a box with no public IP. **This is a remote root shell**: it's off by default, and only as safe as the auth in front of the server. Enable it deliberately and keep strong auth on the reverse proxy.
+- **Web terminal** (`-terminal`, **enabled by default** — pass `-terminal=false` to disable). A full interactive shell in the browser — a real PTY streamed over a WebSocket to an embedded xterm.js (no CDN). In the Docker deployment it's wired via `nsenter` into the **host** namespaces, so you get a shell on the *host*, not the container — handy for a box with no public IP. **This is a remote root shell** and only as safe as the auth in front of the server — keep strong auth on the reverse proxy.
 
 ![Web terminal](docs/terminal.png)
 - **Sortable processes.** Click any column (CPU / mem / RSS / PID / name / user). The server streams a candidate pool that is the **union of the top processes by CPU and by RSS**, so sorting by memory surfaces the real memory hogs — not just whatever ranked high on CPU.
@@ -91,6 +91,9 @@ Linux binaries are built with `CGO_ENABLED=0`, so they are fully static — copy
 | `-interval` | | `2s` | poll interval (floor 500 ms) |
 | `-top` | | `12` | display cap; the streamed pool is larger for correct sorting |
 | `-docker-socket` | `LOOKOUT_DOCKER_SOCKET` | auto | Docker socket path; empty disables the Docker view |
+| `-netmgr` | | `true` | show the NetworkManager tab when NM is detected (auto) |
+| `-terminal` | | `true` | web terminal tab (remote shell); `-terminal=false` to disable |
+| `-terminal-cmd` | | `$SHELL`/sh | shell argv for the terminal (compose sets `nsenter … bash` for a host shell) |
 | `-version` | | | print version and exit |
 
 ## Architecture

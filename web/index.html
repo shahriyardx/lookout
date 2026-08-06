@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark" />
+  <title>lookout // system monitor</title>
+  <link rel="stylesheet" href="/app.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' fill='%2304070a'/%3E%3Cpath d='M4 4 H20 V12 L12 21 L4 12 Z' fill='rgba(255,255,255,0.12)' stroke='%23c9c9c9' stroke-width='1.5' stroke-linejoin='miter'/%3E%3Cpath d='M6.4 11 H9.8 L11.2 7.4 L13 14.6 L14.3 11 H17.6' fill='none' stroke='%23c9c9c9' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+</head>
+<body class="text-[13px]">
+  <div class="flex h-screen overflow-hidden">
+
+    <!-- Sidebar -->
+    <aside class="hidden md:flex w-60 shrink-0 flex-col overflow-y-auto border-r border-[rgba(255,255,255,0.16)] bg-term-900/70 backdrop-blur-sm">
+      <div class="flex items-center gap-3 px-4 h-16 border-b border-[rgba(255,255,255,0.16)]">
+        <span class="relative grid place-items-center w-10 h-10">
+          <svg viewBox="0 0 24 24" class="w-10 h-10 text-acc" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="miter">
+            <path d="M4 4 H20 V12 L12 21 L4 12 Z" fill="rgba(255,255,255,0.10)"/>
+            <path d="M6.4 11 H9.8 L11.2 7.4 L13 14.6 L14.3 11 H17.6" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <div class="leading-tight">
+          <div class="font-bold tracking-[0.24em] text-[15px] text-acc">LOOKOUT</div>
+          <div class="text-[10px] text-[#6a6a6a] tracking-widest mt-0.5">// SYS·MON</div>
+        </div>
+      </div>
+
+      <nav id="nav" class="flex-1 py-3"></nav>
+
+      <div class="px-4 py-3 border-t border-[rgba(255,255,255,0.16)] text-[10px] text-[#6a6a6a] tracking-wider space-y-1.5">
+        <div class="flex items-center justify-between">
+          <span>REFRESH</span>
+          <select id="intervalSel" class="bg-term-800 border border-[rgba(255,255,255,0.2)] px-1.5 py-0.5 text-[#9a9a9a] text-[10px] outline-none focus:border-acc">
+            <option value="1000">1s</option>
+            <option value="2000" selected>2s</option>
+            <option value="5000">5s</option>
+          </select>
+        </div>
+        <div>v<span id="ver">—</span> · <span id="footHost">—</span></div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <div class="flex-1 min-w-0 flex flex-col">
+      <!-- Header / status bar -->
+      <header class="sticky top-0 z-20 h-16 flex items-center gap-4 px-4 sm:px-6 border-b border-[rgba(255,255,255,0.16)] bg-term-950/85 backdrop-blur-md">
+        <button id="menuBtn" class="md:hidden text-[#7d7d7d] hover:text-acc">
+          <svg viewBox="0 0 24 24" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <div class="min-w-0">
+          <h1 class="text-[14px] font-bold uppercase tracking-[0.14em] text-[#e6e6e6] leading-none flex items-center gap-2">
+            <span class="text-acc">&gt;</span><span id="pageTitle">overview</span><span class="text-acc">_</span>
+          </h1>
+          <div class="flex items-center gap-2 mt-1.5 text-[11px] text-[#6a6a6a]">
+            <span class="text-acc">●</span>
+            <span id="hostname" class="text-[#9a9a9a]">—</span>
+            <span class="text-[#4a4a4a]">:</span>
+            <span id="platform">—</span>
+          </div>
+        </div>
+        <div class="ml-auto flex items-center gap-4 sm:gap-6 text-[11px]">
+          <div class="hidden sm:flex flex-col items-end">
+            <span class="text-[10px] text-[#6a6a6a] tracking-widest">UPTIME</span>
+            <span id="uptime" class="text-[#b0b0b0] tabnum">—</span>
+          </div>
+          <div class="hidden sm:flex flex-col items-end">
+            <span class="text-[10px] text-[#6a6a6a] tracking-widest">TIME</span>
+            <span id="clock" class="text-[#b0b0b0] tabnum">—</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Content -->
+      <main class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
+
+        <!-- OVERVIEW -->
+        <section data-tab="overview" class="tab space-y-5">
+          <div id="kpiRow" class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3"></div>
+
+          <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+            <div class="xl:col-span-2 panel">
+              <div class="panel-head"><h2 class="panel-title">cpu.load</h2><span id="cpuNow" class="badge">—</span></div>
+              <svg id="cpuChart" class="w-full h-48" preserveAspectRatio="none"></svg>
+              <div id="coreBars" class="grid grid-cols-4 sm:grid-cols-8 gap-1.5 mt-4"></div>
+            </div>
+            <div class="panel">
+              <div class="panel-head"><h2 class="panel-title">mem</h2><span id="memNow" class="badge">—</span></div>
+              <div class="py-2"><div id="memGauge"></div></div>
+              <div id="memBreakdown" class="space-y-2 mt-2"></div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <div class="panel">
+              <div class="panel-head"><h2 class="panel-title">net.io</h2><span id="netNow" class="badge">—</span></div>
+              <svg id="netChart" class="w-full h-40" preserveAspectRatio="none"></svg>
+              <div id="netLegend" class="flex items-center gap-6 mt-3 text-[11px]"></div>
+            </div>
+            <div class="panel">
+              <div class="panel-head"><h2 class="panel-title">proc.top</h2><span class="badge">by cpu</span></div>
+              <div id="procMini" class="mt-1"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- CPU -->
+        <section data-tab="cpu" class="tab hidden space-y-5">
+          <div id="cpuKpi" class="grid grid-cols-2 lg:grid-cols-4 gap-3"></div>
+          <div class="panel">
+            <div class="panel-head"><h2 class="panel-title">aggregate.util</h2><span id="cpuNow2" class="badge">—</span></div>
+            <svg id="cpuChart2" class="w-full h-56" preserveAspectRatio="none"></svg>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2 class="panel-title">per.core</h2></div>
+            <div id="coreGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 mt-2"></div>
+          </div>
+        </section>
+
+        <!-- MEMORY -->
+        <section data-tab="memory" class="tab hidden space-y-5">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div class="panel">
+              <div class="panel-head"><h2 class="panel-title">ram</h2><span id="memNow2" class="badge">—</span></div>
+              <div class="py-3"><div id="memGauge2"></div></div>
+              <div id="memBreakdown2" class="space-y-2 mt-2"></div>
+            </div>
+            <div class="panel">
+              <div class="panel-head"><h2 class="panel-title">swap</h2><span id="swapNow" class="badge">—</span></div>
+              <div class="py-3"><div id="swapGauge"></div></div>
+              <div id="swapBreakdown" class="space-y-2 mt-2"></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2 class="panel-title">mem.history</h2></div>
+            <svg id="memChart" class="w-full h-48" preserveAspectRatio="none"></svg>
+          </div>
+        </section>
+
+        <!-- DISK -->
+        <section data-tab="disk" class="tab hidden space-y-5">
+          <div id="diskGrid" class="grid grid-cols-1 lg:grid-cols-2 gap-3"></div>
+        </section>
+
+        <!-- NETWORK -->
+        <section data-tab="network" class="tab hidden space-y-5">
+          <div class="panel">
+            <div class="panel-head"><h2 class="panel-title">throughput</h2><span id="netNow2" class="badge">—</span></div>
+            <svg id="netChart2" class="w-full h-56" preserveAspectRatio="none"></svg>
+            <div id="netLegend2" class="flex items-center gap-6 mt-3 text-[11px]"></div>
+          </div>
+          <div id="netGrid" class="grid grid-cols-1 lg:grid-cols-2 gap-3"></div>
+        </section>
+
+        <!-- PROCESSES -->
+        <section data-tab="procs" class="tab hidden">
+          <div class="panel">
+            <div class="panel-head"><h2 class="panel-title">processes</h2><span id="procCount" class="badge">—</span></div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-[12px] mt-1">
+                <thead>
+                  <tr id="procHead" class="text-left text-[10px] uppercase tracking-[0.16em] text-[#6a6a6a] border-b border-[rgba(255,255,255,0.14)] select-none">
+                    <th class="py-2 pr-4 font-semibold cursor-pointer hover:text-acc" data-key="pid">pid<span class="ar"></span></th>
+                    <th class="py-2 pr-4 font-semibold cursor-pointer hover:text-acc" data-key="name">name<span class="ar"></span></th>
+                    <th class="py-2 pr-4 font-semibold cursor-pointer hover:text-acc" data-key="user">user<span class="ar"></span></th>
+                    <th class="py-2 pr-4 font-semibold cursor-pointer hover:text-acc" data-key="status">stat<span class="ar"></span></th>
+                    <th class="py-2 pr-4 font-semibold cursor-pointer hover:text-acc text-right" data-key="cpu"><span class="ar"></span>cpu%</th>
+                    <th class="py-2 pr-4 font-semibold cursor-pointer hover:text-acc text-right" data-key="memPct"><span class="ar"></span>mem%</th>
+                    <th class="py-2 font-semibold cursor-pointer hover:text-acc text-right" data-key="rss"><span class="ar"></span>rss</th>
+                  </tr>
+                </thead>
+                <tbody id="procTable" class="tabnum"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- DOCKER -->
+        <section data-tab="docker" class="tab hidden">
+          <div id="dockerEmpty" class="panel hidden">
+            <div class="text-center py-10 text-[#6a6a6a]">
+              <div class="text-acc text-2xl mb-2">[ ! ]</div>
+              no docker socket detected on this host.
+            </div>
+          </div>
+          <div id="dockerGrid" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3"></div>
+        </section>
+
+        <!-- SYSTEM -->
+        <section data-tab="system" class="tab hidden space-y-5">
+          <div id="sysGrid" class="grid grid-cols-1 lg:grid-cols-2 gap-4"></div>
+          <div class="panel">
+            <div class="panel-head"><h2 class="panel-title">sensors</h2></div>
+            <div id="sensorGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mt-2"></div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

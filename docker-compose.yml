@@ -1,0 +1,24 @@
+services:
+  lookout:
+    build: .
+    # Or pull a prebuilt image instead of building:
+    # image: ghcr.io/shahriyardx/lookout:latest
+    container_name: lookout
+    restart: unless-stopped
+
+    # Host networking: bind :7070 on the host and read the host's network
+    # interfaces directly (put a reverse proxy in front for auth).
+    network_mode: host
+    command: ["-addr", "127.0.0.1:7070"]
+
+    # Point gopsutil at the host's /proc and /sys so CPU, memory, load,
+    # network and the full host process list are the HOST's, not the
+    # container's.
+    environment:
+      - HOST_PROC=/host/proc
+      - HOST_SYS=/host/sys
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      # Docker tab (read-only). Remove if you don't want it.
+      - /var/run/docker.sock:/var/run/docker.sock:ro

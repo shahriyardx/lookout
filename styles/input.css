@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+/* Scan the frontend for utility classes (HTML + JS string literals). */
+@source "../web";
+
+/* ====================================================================== */
+/*  LOOKOUT — e-ink dark theme.  Monochrome grayscale, flat matte, high    */
+/*  contrast, no color / gradients / glows / shadows. Brighter gray = more */
+/*  load, so intensity still reads without hue.                            */
+/* ====================================================================== */
+@theme {
+  /* surfaces (kept under the old term-* names so utilities resolve) */
+  --color-term-950: #0b0b0c;
+  --color-term-900: #121214;
+  --color-term-880: #151517;
+  --color-term-800: #1a1a1d;
+  --color-term-700: #242428;
+
+  /* single neutral "accent" = near-white for emphasis */
+  --color-acc: #eaeaea;
+
+  --font-sans: "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Menlo", "Consolas", monospace;
+
+  /* sharp corners everywhere */
+  --radius-xs: 0px; --radius-sm: 0px; --radius-md: 0px; --radius-lg: 0px;
+  --radius-xl: 0px; --radius-2xl: 0px; --radius-3xl: 0px; --radius-4xl: 0px;
+}
+
+/* ---- Base ------------------------------------------------------------- */
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    color: #b4b4b4;
+    background: #0b0b0c;   /* flat matte — no gradient, no texture */
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: rgba(255,255,255,0.16); color: #fff; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+}
+
+/* ---- Components ------------------------------------------------------- */
+@layer components {
+  .panel {
+    @apply relative border p-4;
+    border-color: rgba(255,255,255,0.11);
+    background: rgba(255,255,255,0.015);
+  }
+  .panel-head { @apply flex items-center justify-between mb-3 pb-2; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .panel-title {
+    @apply text-[12px] font-semibold uppercase tracking-[0.16em] flex items-center gap-2;
+    color: #d0d0d0;
+  }
+
+  .badge {
+    @apply text-[11px] px-2 py-0.5 border uppercase tracking-wider;
+    color: #9a9a9a; border-color: rgba(255,255,255,0.14); background: rgba(255,255,255,0.02);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .nav-item {
+    @apply flex items-center gap-3 px-3 py-2 text-[12px] uppercase tracking-[0.12em] cursor-pointer border-l-2 transition-colors;
+    color: #7d7d7d; border-color: transparent;
+  }
+  .nav-item:hover { color: #eaeaea; background: rgba(255,255,255,0.04); }
+  .nav-item.active { color: #f2f2f2; background: rgba(255,255,255,0.06); border-color: #eaeaea; }
+
+  .stat {
+    @apply relative border p-3 flex flex-col gap-1.5;
+    border-color: rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.015);
+  }
+}
+
+/* ---- Utilities -------------------------------------------------------- */
+@layer utilities {
+  .tabnum { font-variant-numeric: tabular-nums; }
+}
